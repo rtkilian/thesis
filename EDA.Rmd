@@ -1,0 +1,179 @@
+---
+title: "EDA Isothermal 40 to 49"
+output: html_notebook
+---
+
+```{r}
+# Change directory and import packages
+setwd("/media/seagatedrive/rhys/Run/puffin/turb_channel/Re225-les-3d-30to50tu_isothermal/fields")
+library("readr", lib.loc="~/anaconda3/lib/R/library")
+library("data.table", lib.loc="~/anaconda3/lib/R/library")
+library("tibble", lib.loc="~/anaconda3/lib/R/library")
+library("dplyr", lib.loc="~/anaconda3/lib/R/library")
+library("purrr", lib.loc="~/anaconda3/lib/R/library")
+library("devtools", lib.loc="~/anaconda3/lib/R/library")
+library("ggplot2", lib.loc="~/anaconda3/lib/R/library")
+library("tidyr", lib.loc="~/anaconda3/lib/R/library")
+```
+
+## Data Preparation
+### Import
+```{r}
+# Column names
+#properties <- c("index", "u", "v", "w", "file", "V1xx", "V1xy", "V1xz", "V1yx", "V1yy", "V1yz", "V1zx", "V1zy", "V1zz", "V2xx", "V2xy", "V2xz", "V2yx", "V2yy", "V2yz", "V2zx", "V2zy", "V2zz", "V3xx", "V3xy", "V3xz", "V3yx", "V3yy", "V3yz", "V3zx", "V3zy", "V3zz", "I1", "I2", "Re_yz", "tke", "a_yz")
+data <- read_csv("df_combined_40to49_dropped")
+```
+
+```{r}
+# Rename the index columns
+colnames(data)[colnames(data)=="index"] <- "nodePosition"
+colnames(data)[colnames(data)=="X1"] <- "overallIndex"
+tail(data)
+```
+
+```{r}
+glimpse(data)
+```
+### Train and Test
+```{r}
+# First, select out the first two columns
+# data <- data %>%
+#   select(c(-1,-2))
+
+# Set the seed
+set.seed(42)
+
+# Shuffle row indicies: rows
+rows <- sample(nrow(data))
+
+# Randomly order the data frame
+data <- data[rows,]
+
+# Determine the row to split on
+split <- round(nrow(data) * 0.8)
+
+# Create train
+train <- data[1:split,]
+
+# Create test
+test <- data[(split+1):nrow(data),]
+```
+
+```{r}
+train
+```
+
+```{r}
+test
+```
+
+## 2. EDA
+
+### 2.1 NaN values
+
+```{r}
+# Count the NaNs in each column
+na_count <-sapply(data, function(y) sum(length(which(is.na(y)))))
+(na_count <- data.frame(na_count))
+```
+
+### 2.2 Summary Statistics
+
+```{r}
+summary(train)
+```
+
+### 2.3 Summary Plots
+Use the DataExplorer package: https://towardsdatascience.com/simple-fast-exploratory-data-analysis-in-r-with-dataexplorer-package-e055348d9619
+
+```{r}
+# Vectors of independent and dependent variables
+response <- "a_yz"
+predictors <- c("V1xx", "V1xy", "V1xz", "V1yx", "V1yy", "V1yz", "V1zx", "V1zy", "V1zz", "V2xx", "V2xy", "V2xz", "V2yx", "V2yy", "V2yz", "V2zx", "V2zy", "V2zz", "V3xx", "V3xy", "V3xz", "V3yx", "V3yy", "V3yz", "V3zx", "V3zy", "V3zz", "I1", "I2")
+```
+
+
+#### 2.3.1 Univariate Analysis
+
+##### 2.3.1.1 Response (a_yz)
+
+```{r}
+ggplot(train, aes(x = response)) + geom_density()
+```
+
+##### 2.3.1.2 Predictors
+
+```{r}
+# Function to call
+predictorPlot <- function(columnName){
+  p <- ggplot(train, aes(x = train[columnName])) + geom_density() + labs(x = columnName)
+  print(p)
+}
+
+# Plot them all
+walk(.x = predictors, .f = predictorPlot)
+```
+
+#### 2.3.1.2 Correlation Plots
+```{r}
+library("corrplot", lib.loc="~/anaconda3/lib/R/library")
+
+# Find the correlation matrix
+res <- cor(train)
+
+# Create visualisation
+corrplot(res, type = "upper", order = "hclust",
+         tl.col = "black", tl.srt = 90)
+```
+
+#### 2.3.1.3 Bivariate Relationships
+
+##### 2.3.1.3.1 Scatter Plots
+
+```{r}
+predictorScatterPlot <- function(columnName){
+  p <-ggplot(train, aes(x = train[columnName], y = a_yz)) + geom_point(alpha = 0.2) + labs(x = columnName)
+  print(p)
+}
+
+walk(.x = predictors, .f = predictorScatterPlot)
+```
+
+## 3. Modelling
+
+Try a basic model from: https://blog.dominodatalab.com/multicore-data-science-r-python/
+
+```{r}
+library("parallel", lib.loc="~/anaconda3/lib/R/library")
+library("doMC", lib.loc="~/anaconda3/lib/R/library")
+library("caret", lib.loc="~/anaconda3/lib/R/library")
+
+# Take 20% of the training data for an initial look at the model
+set.seed(123)
+rows <- sample(nrow(train))
+train <- train[rows,]
+split <- round(nrow(train)*0.001)
+train_split <- train[(1:split),]
+
+# Filter out the columns I don't need
+train_split <- train_split %>%
+  select(c(-1,-2))
+
+# Find and register the number of cores
+numCores <- detectCores()
+registerDoMC(cores = numCores)
+
+# Fit random forest
+model <- train(a_yz ~ .,
+               tuneLength = 1,
+               data = train_split,
+               method = "ranger",
+               trControl = trainControl(method = "cv", number = 3, verboseIter = TRUE)
+               )
+
+model
+
+plot(model)
+
+```
+
