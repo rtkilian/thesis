@@ -1,2 +1,8 @@
-# thesis
-University of Sydney Honours engineering thesis
+# Reynolds-Averaged Turbulence Closures Using Machine Learning to Predict Open-Channel Flow
+
+## Overview
+Recent computational advances have enabled high-fidelity simulations, such as direct numerical simulation (DNS) and large eddy simulations (LES) for turbulent flows to become viable. However, lower fidelity Reynolds-Averaged Navier-Stokes (RANS) models are still the primary tool for modelling turbulence in commercial applications. Yet, commonly used RANS models, such as the k-epsilon and k-omega methods, are known to be inaccurate on flows with three-dimensional separation, streamline curvature and large pressure and buoyancy gradients. The predictive capabilities of RANS models are somewhat limited due to the assumptions made when providing a closure model for the Reynolds stress. The resulting discrepancy between the calculated Reynolds stress and the true Reynolds stress leads to inaccurate predictions for quantities such as the mean velocity, mean pressure, wall shear and the lift and drag forces.
+
+Recently, there has been interest in providing data-driven closure models for the Reynolds stress. Machine learning techniques, such as genetic algorithms, deep neural networks or random forests, can be used to model the Reynolds stress using data obtained from high-fidelity sources, such as DNS and LES. Studies conducted by Ling, Wang and Weatheritt have shown that data-driven closure models can improve the accuracy of traditional RANS closure models in a number of different applications including duct, periodic hills and open-channel flow. Despite this, there is no clear consensus about how to best develop data-driven RANS closures. This problem includes considerations regarding what machine learning algorithm to use, what variables should be inputted into the algorithm, how to enforce Galilean invariance, and how to best structure the representation of the independent variable, the Reynolds stress.
+
+The chosen application for this thesis is modelling open-channel flow under both isothermal and stably stratified conditions.
